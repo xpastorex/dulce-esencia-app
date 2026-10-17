@@ -1,11 +1,10 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Puedes configurar el Pool para aceptar tanto una URL de conexión como parámetros sueltos
 const poolConfig = process.env.DATABASE_URL 
   ? { 
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false } // A menudo necesario para conexiones en la nube
+      ssl: { rejectUnauthorized: false } // conexiones en la nube
     }
   : {
       user: process.env.DB_USER,
