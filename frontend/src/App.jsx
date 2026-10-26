@@ -1,49 +1,39 @@
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Layout from './components/Layout';
+import Sales from './pages/Sales';
+import Products from './pages/Products';
+import SalesHistory from './pages/SalesHistory';
 
-function Inicio() {
-  const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
+// Redirige al inicio si ya está logeado (para pantallas de login/registro)
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (token) return <Navigate to="/" replace />;
+  return children;
+};
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <h1 className="mb-4 text-4xl font-bold text-blue-600">
-        Panel Principal
-      </h1>
-      {user ? (
-        <div className="text-center">
-          <p className="mb-4 text-xl">Bienvenido, {user.name} ({user.role})</p>
-          <button 
-            onClick={handleLogout}
-            className="px-4 py-2 font-bold text-white bg-red-500 rounded hover:bg-red-700"
-          >
-            Cerrar Sesión
-          </button>
-        </div>
-      ) : (
-        <div className="space-x-4">
-          <Link to="/login" className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600">Ir a Login</Link>
-          <Link to="/register" className="px-4 py-2 text-white bg-green-500 rounded hover:bg-green-600">Registrarse</Link>
-        </div>
-      )}
-    </div>
-  );
-}
+// Redirige al login si NO está logeado (para las vistas de la app)
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" replace />;
+  
+  // Si está logeado, envuelve la vista en el Layout del Sidebar
+  return <Layout>{children}</Layout>;
+};
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Inicio />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* Rutas Públicas */}
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+        {/* Rutas Privadas (Protegidas y envueltas en el Sidebar) */}
+        <Route path="/" element={<PrivateRoute><Sales /></PrivateRoute>} />
+        <Route path="/productos" element={<PrivateRoute><Products /></PrivateRoute>} />
+        <Route path="/historial" element={<PrivateRoute><SalesHistory /></PrivateRoute>} />
       </Routes>
     </Router>
   );

@@ -4,7 +4,8 @@ const cors = require('cors');
 
 // Importar rutas
 const authRoutes = require('./src/routes/authRoutes'); // <-- NUEVO: Importar rutas de auth
-
+const productRoutes = require('./src/routes/productRoutes');
+const saleRoutes = require('./src/routes/saleRoutes')
 const app = express();
 
 // Middlewares globales
@@ -12,7 +13,9 @@ app.use(cors());
 app.use(express.json());
 
 // Montar rutas
-app.use('/api/auth', authRoutes); // <-- NUEVO: Montar las rutas en el prefijo /api/auth
+app.use('/api/products', productRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/sales', saleRoutes);
 
 // Manejador de rutas no encontradas (404)
 app.use((req, res, next) => {

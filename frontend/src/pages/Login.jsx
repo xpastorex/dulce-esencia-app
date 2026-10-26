@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 
@@ -7,6 +7,13 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+
+  useEffect(() => {
+    if(localStorage.getItem('user')){
+      navigate('/')
+    }
+  },[])
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +35,7 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen ">
       <div className="w-full max-w-md p-8 bg-white rounded shadow-md">
         <h2 className="mb-6 text-2xl font-bold text-center text-gray-800">Iniciar Sesión</h2>
         

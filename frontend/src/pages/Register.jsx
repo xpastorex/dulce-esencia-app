@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 
@@ -10,6 +10,12 @@ export default function Register() {
   const [roleId, setRoleId] = useState(2); 
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if(localStorage.getItem('user')){
+      navigate('/')
+    }
+  },[])
 
   const handleSubmit = async (e) => {
     e.preventDefault();
