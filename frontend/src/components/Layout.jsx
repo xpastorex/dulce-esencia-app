@@ -14,8 +14,8 @@ export default function Layout({ children }) {
 
   // Rutas del menú
   const navItems = [
-    { name: 'Dashboard', path: '/' },          
-    { name: 'Nueva Venta', path: '/venta' },    
+    { name: 'Venta', path: '/' },          
+    { name: 'Dashboard', path: '/venta' },    
     { name: 'Productos', path: '/productos' },
     { name: 'Historial', path: '/historial' },
   ];
