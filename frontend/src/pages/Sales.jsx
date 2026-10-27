@@ -16,7 +16,7 @@ export default function Sales() {
         const response = await api.get('/products');
         const loadedProducts = response.data.data;
         setProducts(loadedProducts);
-        
+
         // Inicializar todas las categorías como activas por defecto
         const uniqueCategories = [...new Set(loadedProducts.map(p => p.category_name || 'General'))];
         setActiveCategories(uniqueCategories);
@@ -43,7 +43,7 @@ export default function Sales() {
     });
   };
 
-  const filteredProducts = products.filter(product => 
+  const filteredProducts = products.filter(product =>
     activeCategories.includes(product.category_name || 'General')
   );
 
@@ -52,7 +52,7 @@ export default function Sales() {
     setCart((prevCart) => {
       const existingItem = prevCart.find(item => item.id === product.id);
       if (existingItem) {
-        return prevCart.map(item => 
+        return prevCart.map(item =>
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
@@ -79,16 +79,47 @@ export default function Sales() {
     }
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       alert('El carrito está vacío');
       return;
     }
-    alert('¡Hola Mundo! Conectaremos esto al backend pronto.');
+
+    // Confirmación simple antes de procesar el pago (opcional, pero buena práctica)
+    const confirmacion = window.confirm(`¿Confirmas el pago por ${formatCurrency(cartSubtotal)}?`);
+    if (!confirmacion) return;
+
+    try {
+      // Armamos el objeto con los datos que espera el controlador
+      const payload = {
+        cart: cart,
+        payment_method_id: 1 // 1 = Efectivo (Puedes cambiarlo al ID que prefieras probar)
+      };
+
+      // Hacemos el POST a la API
+      // (Recuerda que el token de autenticación se envía solo gracias al interceptor de Axios)
+      const response = await api.post('/sales', payload);
+
+      if (response.data.success) {
+        // 1. Mostrar mensaje de éxito con el ID de la venta devuelto por la base de datos
+        alert(`¡Venta #${response.data.sale_id} registrada con éxito!`);
+
+        // 2. Limpiar la pantalla (Vaciar el carrito)
+        setCart([]);
+      }
+
+    } catch (error) {
+      console.error('Error procesando la venta:', error);
+
+      // Mostramos el mensaje de error exacto que nos envía el backend (ej. "Stock insuficiente")
+      // Si el backend no mandó un mensaje personalizado, mostramos uno genérico
+      const errorMessage = error.response?.data?.error || 'Ocurrió un error inesperado al registrar la venta.';
+      alert(`Error: ${errorMessage}`);
+    }
   };
 
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
   };
@@ -97,7 +128,7 @@ export default function Sales() {
 
   return (
     <div className="h-full flex flex-col md:flex-row gap-6 bg-gray-100 -m-6 md:-m-8 p-6 md:p-8">
-      
+
       {/* ==========================================
           LADO IZQUIERDO: CATÁLOGO DE PRODUCTOS 
           ========================================== */}
@@ -118,8 +149,8 @@ export default function Sales() {
                 key={category}
                 onClick={() => toggleCategory(category)}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-all shadow-sm
-                  ${isActive 
-                    ? 'bg-pink-600 text-white border-transparent' 
+                  ${isActive
+                    ? 'bg-pink-600 text-white border-transparent'
                     : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
                   }`}
               >
@@ -178,7 +209,7 @@ export default function Sales() {
           LADO DERECHO: CARRITO (BOLETA)
           ========================================== */}
       <div className="w-full md:w-96 bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col h-[calc(100vh-120px)] md:h-full relative">
-        
+
         <div className="p-4 border-b bg-gray-50 rounded-t-xl flex justify-between items-center">
           <h2 className="font-bold text-lg text-gray-800">Pedido Actual</h2>
           <span className="bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -201,10 +232,10 @@ export default function Sales() {
                   <span className="font-bold text-gray-800 flex-1 leading-tight pr-2">{item.name}</span>
                   <span className="font-black text-gray-900">{formatCurrency(item.price * item.quantity)}</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <div className="flex items-center bg-white rounded border border-gray-300 shadow-sm overflow-hidden">
-                    <button 
+                    <button
                       onClick={() => updateQuantity(item.id, -1)}
                       className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-pink-600 font-bold transition-colors"
                     >
@@ -213,15 +244,15 @@ export default function Sales() {
                     <span className="font-bold text-sm w-8 text-center bg-gray-50 py-1.5 border-x border-gray-200">
                       {item.quantity}
                     </span>
-                    <button 
+                    <button
                       onClick={() => updateQuantity(item.id, 1)}
                       className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-pink-600 font-bold transition-colors"
                     >
                       +
                     </button>
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => removeFromCart(item.id)}
                     className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded transition-colors border border-red-100"
                     title="Eliminar producto"
@@ -241,16 +272,16 @@ export default function Sales() {
             <span className="text-gray-500 font-bold uppercase text-sm tracking-wider">Total a Pagar</span>
             <span className="text-3xl font-black text-pink-600">{formatCurrency(cartSubtotal)}</span>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-3">
-            <button 
+            <button
               onClick={clearCart}
               disabled={cart.length === 0}
               className="py-3 font-bold text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-100"
             >
               Vaciar
             </button>
-            <button 
+            <button
               onClick={handleCheckout}
               disabled={cart.length === 0}
               className="py-3 font-bold text-white bg-green-500 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow"
