@@ -32,8 +32,8 @@ function App() {
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
         {/* Rutas Privadas (Protegidas y envueltas en el Sidebar) */}
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/venta" element={<PrivateRoute><Sales /></PrivateRoute>} />
+        <Route path="/" element={<PrivateRoute><Sales /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/productos" element={<PrivateRoute><Products /></PrivateRoute>} />
         <Route path="/historial" element={<PrivateRoute><SalesHistory /></PrivateRoute>} />
       </Routes>
