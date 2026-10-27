@@ -53,7 +53,14 @@ export default function Sales() {
   const addToCart = (product) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find(item => item.id === product.id);
+
       if (existingItem) {
+
+        if (existingItem.quantity >= product.stock) {
+          alert(`No hay más stock disponible de ${product.name}`);
+          return prevCart; // Retornamos el carrito sin cambios
+        }
+
         return prevCart.map(item =>
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
@@ -65,7 +72,14 @@ export default function Sales() {
   const updateQuantity = (productId, delta) => {
     setCart((prevCart) => prevCart.map(item => {
       if (item.id === productId) {
-        return { ...item, quantity: Math.max(1, item.quantity + delta) };
+        const newQuantity = item.quantity + delta;
+
+        // NUEVA VALIDACIÓN: Evitar que el número supere el stock real
+        if (newQuantity > item.stock) {
+          return item; // Ignora el clic y devuelve el ítem como estaba
+        }
+
+        return { ...item, quantity: Math.max(1, newQuantity) };
       }
       return item;
     }));
@@ -233,7 +247,8 @@ export default function Sales() {
                     </span>
                     <button
                       onClick={() => updateQuantity(item.id, 1)}
-                      className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-pink-600 font-bold transition-colors"
+                      disabled={item.quantity >= item.stock} /* NUEVO: Deshabilita si llega al límite */
+                      className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-pink-600 font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       +
                     </button>
@@ -259,12 +274,12 @@ export default function Sales() {
             <span className="text-gray-500 font-bold uppercase text-sm tracking-wider">Total a Pagar</span>
             <span className="text-3xl font-black text-pink-600">{formatCurrency(cartSubtotal)}</span>
           </div>
-          
+
           {/* NUEVO: Selector de Método de Pago */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Método de Pago</label>
-            <select 
-              value={paymentMethodId} 
+            <select
+              value={paymentMethodId}
               onChange={(e) => setPaymentMethodId(Number(e.target.value))}
               className="w-full p-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 font-medium focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all shadow-sm"
             >
@@ -274,17 +289,17 @@ export default function Sales() {
               <option value={4}>Transferencia</option>
             </select>
           </div>
-          
+
           {/* Botones de acción (se mantienen igual) */}
           <div className="grid grid-cols-2 gap-3">
-            <button 
+            <button
               onClick={clearCart}
               disabled={cart.length === 0}
               className="py-3 font-bold text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-100"
             >
               Vaciar
             </button>
-            <button 
+            <button
               onClick={handleCheckout}
               disabled={cart.length === 0}
               className="py-3 font-bold text-white bg-green-500 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow"
