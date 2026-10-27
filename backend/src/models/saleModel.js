@@ -43,7 +43,6 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
         let totalItems = 0;
         let totalAmount = 0;
 
-        // Calcular totales basados en el arreglo del carrito
         for (const item of cart) {
             totalItems += item.quantity;
             totalAmount += (item.price * item.quantity);
@@ -51,13 +50,11 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
 
         // 3. Insertar la Cabecera de la Venta
         const saleQuery = `
-            INSERT INTO sales (user_id, payment_method_id, total_items, subtotal, total_amount)
+            INSERT INTO sales (user_id, payment_method_id, total_items, subtotal, total)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id;
         `;
-        
-        // Asumimos subtotal y total iguales (sin IVA separado por ahora)
-        const saleValues = [userId, paymentMethodId, totalItems, totalAmount, totalAmount];
+        const saleValues = [userId, paymentMethodId, totalItems, totalAmount, totalAmount]; 
         const saleResult = await client.query(saleQuery, saleValues);
         const saleId = saleResult.rows[0].id;
 
@@ -66,9 +63,7 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
             INSERT INTO sale_details (sale_id, product_id, quantity, unit_price, subtotal)
             VALUES ($1, $2, $3, $4, $5);
         `;
-        const updateStockQuery = `module.exports = {
-    getHistory
-};
+        const updateStockQuery = `
             UPDATE products 
             SET stock = stock - $1 
             WHERE id = $2;
@@ -77,10 +72,10 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
         // 5. Iterar sobre cada producto del carrito
         for (const item of cart) {
             const itemSubtotal = item.price * item.quantity;
-
+            
             // Insertar el detalle
             await client.query(detailQuery, [saleId, item.id, item.quantity, item.price, itemSubtotal]);
-
+            
             // Restar el stock en el inventario
             await client.query(updateStockQuery, [item.quantity, item.id]);
         }
@@ -90,12 +85,12 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
         return saleId;
 
     } catch (error) {
-        // 7. Si ALGO falla (ej. stock negativo, ID no existe), cancelar TODO
+        // 7. Si falla, cancelar TODO
         await client.query('ROLLBACK');
-        throw error; // Lanzar el error al controlador
+        throw error;
     } finally {
-        // 8. Liberar siempre el cliente para que vuelva al pool, haya error o no
-        client.release();
+        // 8. Liberar siempre el cliente
+        client.release(); 
     }
 };
 

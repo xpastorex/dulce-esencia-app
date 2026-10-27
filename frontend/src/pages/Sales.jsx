@@ -7,6 +7,8 @@ export default function Sales() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [paymentMethodId, setPaymentMethodId] = useState(1);
+
   // Estado para los filtros de categorías
   const [activeCategories, setActiveCategories] = useState([]);
 
@@ -80,44 +82,29 @@ export default function Sales() {
   };
 
   const handleCheckout = async () => {
-    if (cart.length === 0) {
-      alert('El carrito está vacío');
-      return;
-    }
+    if (cart.length === 0) return alert('El carrito está vacío');
 
-    // Confirmación simple antes de procesar el pago (opcional, pero buena práctica)
     const confirmacion = window.confirm(`¿Confirmas el pago por ${formatCurrency(cartSubtotal)}?`);
     if (!confirmacion) return;
 
     try {
-      // Armamos el objeto con los datos que espera el controlador
       const payload = {
         cart: cart,
-        payment_method_id: 1 // 1 = Efectivo (Puedes cambiarlo al ID que prefieras probar)
+        payment_method_id: paymentMethodId // <-- AHORA USA EL ESTADO
       };
 
-      // Hacemos el POST a la API
-      // (Recuerda que el token de autenticación se envía solo gracias al interceptor de Axios)
       const response = await api.post('/sales', payload);
 
       if (response.data.success) {
-        // 1. Mostrar mensaje de éxito con el ID de la venta devuelto por la base de datos
         alert(`¡Venta #${response.data.sale_id} registrada con éxito!`);
-
-        // 2. Limpiar la pantalla (Vaciar el carrito)
         setCart([]);
+        setPaymentMethodId(1); // Opcional: Reiniciar el selector a Efectivo
       }
-
     } catch (error) {
-      console.error('Error procesando la venta:', error);
-
-      // Mostramos el mensaje de error exacto que nos envía el backend (ej. "Stock insuficiente")
-      // Si el backend no mandó un mensaje personalizado, mostramos uno genérico
-      const errorMessage = error.response?.data?.error || 'Ocurrió un error inesperado al registrar la venta.';
+      const errorMessage = error.response?.data?.error || 'Error al registrar la venta.';
       alert(`Error: ${errorMessage}`);
     }
   };
-
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   const formatCurrency = (amount) => {
@@ -272,16 +259,32 @@ export default function Sales() {
             <span className="text-gray-500 font-bold uppercase text-sm tracking-wider">Total a Pagar</span>
             <span className="text-3xl font-black text-pink-600">{formatCurrency(cartSubtotal)}</span>
           </div>
-
+          
+          {/* NUEVO: Selector de Método de Pago */}
+          <div className="mb-4">
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Método de Pago</label>
+            <select 
+              value={paymentMethodId} 
+              onChange={(e) => setPaymentMethodId(Number(e.target.value))}
+              className="w-full p-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 font-medium focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all shadow-sm"
+            >
+              <option value={1}>Efectivo</option>
+              <option value={2}>Tarjeta de Débito</option>
+              <option value={3}>Tarjeta de Crédito</option>
+              <option value={4}>Transferencia</option>
+            </select>
+          </div>
+          
+          {/* Botones de acción (se mantienen igual) */}
           <div className="grid grid-cols-2 gap-3">
-            <button
+            <button 
               onClick={clearCart}
               disabled={cart.length === 0}
               className="py-3 font-bold text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-100"
             >
               Vaciar
             </button>
-            <button
+            <button 
               onClick={handleCheckout}
               disabled={cart.length === 0}
               className="py-3 font-bold text-white bg-green-500 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow"
