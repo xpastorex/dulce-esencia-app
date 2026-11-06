@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
+import Success from '../assets/successfull.svg'
 
 export default function Sales() {
   const [products, setProducts] = useState([]);
@@ -8,6 +9,10 @@ export default function Sales() {
   const [error, setError] = useState(null);
 
   const [paymentMethodId, setPaymentMethodId] = useState(1);
+
+  //Modals
+  const [confirmModal, setConfirmModal] = useState(false);
+  const [successModal, setSuccessModal] = useState({ show: false, saleId: null });
 
   // Estado para los filtros de categorías
   const [activeCategories, setActiveCategories] = useState([]);
@@ -95,30 +100,44 @@ export default function Sales() {
     }
   };
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) return alert('El carrito está vacío');
+  const handleCheckout = () => {
+    if (cart.length === 0) {
+      alert('El carrito está vacío');
+      return;
+    }
+    // En vez de window.confirm, simplemente mostramos nuestro modal
+    setConfirmModal(true);
+  };
 
-    const confirmacion = window.confirm(`¿Confirmas el pago por ${formatCurrency(cartSubtotal)}?`);
-    if (!confirmacion) return;
-
+  // 2. Esta función se ejecuta al darle al botón "Confirmar" DENTRO del modal
+  const processPayment = async () => {
     try {
       const payload = {
         cart: cart,
-        payment_method_id: paymentMethodId // <-- AHORA USA EL ESTADO
+        payment_method_id: paymentMethodId
       };
 
       const response = await api.post('/sales', payload);
 
       if (response.data.success) {
-        alert(`¡Venta #${response.data.sale_id} registrada con éxito!`);
+        // Ocultamos el modal de confirmación
+        setConfirmModal(false);
+
+        // Mostramos el modal de éxito (que ya tenías)
+        setSuccessModal({ show: true, saleId: response.data.sale_id });
+
         setCart([]);
-        setPaymentMethodId(1); // Opcional: Reiniciar el selector a Efectivo
+        setPaymentMethodId(1);
       }
     } catch (error) {
+      // Si hay error, también cerramos el modal de confirmación para ver el error
+      setConfirmModal(false);
       const errorMessage = error.response?.data?.error || 'Error al registrar la venta.';
       alert(`Error: ${errorMessage}`);
     }
   };
+
+
   const cartSubtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   const formatCurrency = (amount) => {
@@ -309,6 +328,65 @@ export default function Sales() {
           </div>
         </div>
 
+        {confirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-sm w-full text-center transform transition-all scale-100 opacity-100">
+
+              {/* Ícono de Interrogación / Info azul */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6">
+                <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+
+              <h3 className="text-2xl font-black text-gray-800 mb-2">Confirmar Venta</h3>
+              <p className="text-gray-600 mb-8 font-medium">
+                ¿Deseas procesar el cobro por un total de <span className="font-bold text-pink-600 text-lg">{formatCurrency(cartSubtotal)}</span>?
+              </p>
+
+              {/* Botones de acción divididos */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmModal(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={processPayment}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md active:scale-95"
+                >
+                  Confirmar
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {successModal.show && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-sm w-full text-center transform transition-all scale-100 opacity-100">
+
+              {/* Ícono de Check verde */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                <img src={Success} alt="" />
+              </div>
+
+              <h3 className="text-2xl font-black text-gray-800 mb-2">¡Venta Exitosa!</h3>
+              <p className="text-gray-600 mb-8 font-medium">
+                La venta <span className="font-bold text-pink-600">#{successModal.saleId}</span> ha sido procesada y registrada correctamente.
+              </p>
+
+              <button
+                onClick={() => setSuccessModal({ show: false, saleId: null })}
+                className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md active:scale-95"
+              >
+                Nueva Venta
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
