@@ -17,24 +17,29 @@ export default function Sales() {
   // Estado para los filtros de categorías
   const [activeCategories, setActiveCategories] = useState([]);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await api.get('/products');
-        const loadedProducts = response.data.data;
-        setProducts(loadedProducts);
+  const fetchProducts = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
 
-        // Inicializar todas las categorías como activas por defecto
+    try {
+      const response = await api.get('/products');
+      const loadedProducts = response.data.data;
+      setProducts(loadedProducts);
+
+      // Solo sobreescribir las categorías activas si es la primera carga
+      if (isInitialLoad) {
         const uniqueCategories = [...new Set(loadedProducts.map(p => p.category_name || 'General'))];
         setActiveCategories(uniqueCategories);
-      } catch (err) {
-        setError('Error al cargar los productos');
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchProducts();
+    } catch (err) {
+      setError('Error al cargar los productos');
+      console.error(err);
+    } finally {
+      if (isInitialLoad) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(true);
   }, []);
 
   // Funciones de Categorías
@@ -379,7 +384,10 @@ export default function Sales() {
               </p>
 
               <button
-                onClick={() => setSuccessModal({ show: false, saleId: null })}
+                onClick={() => {
+                  setSuccessModal({ show: false, saleId: null });
+                  fetchProducts(false);
+                }}
                 className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md active:scale-95"
               >
                 Nueva Venta

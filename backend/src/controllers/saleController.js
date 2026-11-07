@@ -2,11 +2,12 @@ const saleModel = require('../models/saleModel');
 
 const getSalesHistory = async (req, res, next) => {
     try {
-        const sales = await saleModel.getHistory();
+        const { startDate, endDate } = req.query;
+        const history = await saleModel.getHistory(startDate, endDate);
+        
         res.status(200).json({
             success: true,
-            count: sales.length,
-            data: sales
+            data: history
         });
     } catch (error) {
         next(error);

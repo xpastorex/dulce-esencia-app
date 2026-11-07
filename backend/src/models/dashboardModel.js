@@ -25,9 +25,10 @@ const getStats = async () => {
 
     // 4. Productos en Stock Crítico (5 o menos unidades)
     const stockCriticoQuery = `
-        SELECT COUNT(*) as count
-        FROM products
-        WHERE stock <= 5 AND is_active = true;
+        SELECT id, name as nombre, stock 
+        FROM products 
+        WHERE stock <= 5 AND is_active = true
+        ORDER BY stock ASC;
     `;
 
     // 5. Top 3 Productos más vendidos del mes
@@ -47,19 +48,36 @@ const getStats = async () => {
         LIMIT 3;
     `;
 
+    const graficoQuery = `
+        SELECT 
+            TO_CHAR(d.date, 'DD/MM') as fecha,
+            COALESCE(SUM(s.total), 0) as total
+        FROM (
+            SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as date
+        ) d
+        LEFT JOIN sales s ON DATE(s.created_at) = d.date
+        GROUP BY d.date
+        ORDER BY d.date ASC;
+    `;
+
+    
+
     // Ejecutar todas las consultas SQL de forma simultánea
     const [
         ventasHoyRes,
         ventasMesRes,
         ticketPromedioRes,
         stockCriticoRes,
-        topProductosRes
+        topProductosRes,
+        graficoRes
+        
     ] = await Promise.all([
         pool.query(ventasHoyQuery),
         pool.query(ventasMesQuery),
         pool.query(ticketPromedioQuery),
         pool.query(stockCriticoQuery),
-        pool.query(topProductosQuery)
+        pool.query(topProductosQuery),
+        pool.query(graficoQuery)
     ]);
 
     // Formatear y retornar los datos
@@ -67,11 +85,18 @@ const getStats = async () => {
         ventasHoy: parseFloat(ventasHoyRes.rows[0].total),
         ventasMes: parseFloat(ventasMesRes.rows[0].total),
         ticketPromedio: parseFloat(ticketPromedioRes.rows[0].promedio),
-        stockCritico: parseInt(stockCriticoRes.rows[0].count, 10),
-        topProductos: topProductosRes.rows.map(row => ({
+        stockCritico: stockCriticoRes.rows.length,
+        productosCriticos: stockCriticoRes.rows.map(row => ({
             id: row.id,
             nombre: row.nombre,
-            cantidad: parseInt(row.cantidad, 10),
+            stock: parseInt(row.stock, 10)
+        })),
+        topProductos: topProductosRes.rows.map(row => ({
+            id: row.id, nombre: row.nombre, cantidad: parseInt(row.cantidad, 10), total: parseFloat(row.total)
+        })),
+        // NUEVO: Array para el gráfico
+        graficoVentas: graficoRes.rows.map(row => ({
+            fecha: row.fecha,
             total: parseFloat(row.total)
         }))
     };

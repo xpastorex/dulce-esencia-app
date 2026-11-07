@@ -1,12 +1,12 @@
 const pool = require('../config/db');
 
-const getHistory = async () => {
-    const query = `
+const getHistory = async (startDate, endDate) => {
+    let query = `
         SELECT 
             s.id as sale_id,
             s.total_items,
             s.subtotal,
-            s.total,
+            s.total as total,
             s.created_at as sale_date,
             u.name as cashier_name,
             pm.name as payment_method_name,
@@ -25,10 +25,26 @@ const getHistory = async () => {
         FROM sales s
         JOIN users u ON s.user_id = u.id
         JOIN payment_methods pm ON s.payment_method_id = pm.id
-        ORDER BY s.created_at DESC;
+        WHERE 1=1
     `;
 
-    const result = await pool.query(query);
+    const values = [];
+
+    // Si viene fecha de inicio, la agregamos a los valores y al SQL
+    if (startDate) {
+        values.push(startDate);
+        query += ` AND DATE(s.created_at) >= $${values.length}`;
+    }
+
+    // Si viene fecha de fin, hacemos lo mismo
+    if (endDate) {
+        values.push(endDate);
+        query += ` AND DATE(s.created_at) <= $${values.length}`;
+    }
+
+    query += ` ORDER BY s.created_at DESC;`;
+
+    const result = await pool.query(query, values);
     return result.rows;
 };
 
@@ -54,7 +70,7 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id;
         `;
-        const saleValues = [userId, paymentMethodId, totalItems, totalAmount, totalAmount]; 
+        const saleValues = [userId, paymentMethodId, totalItems, totalAmount, totalAmount];
         const saleResult = await client.query(saleQuery, saleValues);
         const saleId = saleResult.rows[0].id;
 
@@ -72,10 +88,10 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
         // 5. Iterar sobre cada producto del carrito
         for (const item of cart) {
             const itemSubtotal = item.price * item.quantity;
-            
+
             // Insertar el detalle
             await client.query(detailQuery, [saleId, item.id, item.quantity, item.price, itemSubtotal]);
-            
+
             // Restar el stock en el inventario
             await client.query(updateStockQuery, [item.quantity, item.id]);
         }
@@ -90,7 +106,7 @@ const createSaleTransaction = async (userId, paymentMethodId, cart) => {
         throw error;
     } finally {
         // 8. Liberar siempre el cliente
-        client.release(); 
+        client.release();
     }
 };
 

@@ -6,126 +6,260 @@ export default function SalesHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Estado para controlar qué fila está expandida (acordeón)
+  // Estado para saber qué fila está expandida (guardaremos el sale_id)
   const [expandedSaleId, setExpandedSaleId] = useState(null);
 
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const fetchHistory = async (start = startDate, end = endDate) => {
+    setLoading(true);
+    try {
+      const response = await api.get('/sales/history', {
+        params: { startDate: start, endDate: end }
+      });
+      setSales(response.data.data || response.data || []);
+    } catch (err) {
+      console.error('Error al cargar historial:', err);
+      setError('No se pudo cargar el historial de ventas.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carga inicial
   useEffect(() => {
-    const fetchSales = async () => {
-      try {
-        const response = await api.get('/sales/history');
-        setSales(response.data.data);
-      } catch (err) {
-        setError('Error al cargar el historial de ventas');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSales();
+    fetchHistory();
   }, []);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
-  };
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('es-CL', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
+    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return new Date(dateString).toLocaleDateString('es-CL', options);
+  };
+
+  const toggleDetails = (id) => {
+    // Si la fila clickeada ya está abierta, la cerramos (null), sino, la abrimos (id)
+    setExpandedSaleId(prevId => (prevId === id ? null : id));
+  };
+
+  const handleClearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    fetchHistory('', ''); // Forzamos la búsqueda vacía inmediatamente
+  };
+
+  if (loading) return <div className="p-8 text-center text-gray-500 font-medium mt-10">Cargando historial de ventas...</div>;
+  if (error) return <div className="p-8 text-center text-red-500 font-medium mt-10 bg-red-50 rounded-xl">{error}</div>;
+
+
+  const exportToCSV = () => {
+    if (sales.length === 0) {
+      alert('No hay datos para exportar.');
+      return;
+    }
+
+    // 1. Definir las cabeceras del CSV
+    const headers = ['ID Venta', 'Fecha', 'Cajero', 'Método de Pago', 'Artículos', 'Total'];
+
+    // 2. Mapear los datos de React a formato de texto (filas)
+    const rows = sales.map(sale => {
+      // Envolvemos los textos en comillas dobles para evitar problemas si tienen comas
+      return [
+        sale.sale_id,
+        `"${formatDate(sale.sale_date)}"`,
+        `"${sale.cashier_name}"`,
+        `"${sale.payment_method_name}"`,
+        sale.total_items,
+        sale.total // Exportamos el número puro, sin símbolo $ para que Excel pueda sumar
+      ].join(',');
     });
-  };
 
-  const toggleRow = (id) => {
-    setExpandedSaleId(expandedSaleId === id ? null : id);
-  };
+    // 3. Unir cabeceras y filas con saltos de línea
+    const csvContent = [headers.join(','), ...rows].join('\n');
 
-  const handlePrint = (e, saleId) => {
-    e.stopPropagation(); // Evita que se colapse la fila al hacer clic en el botón
-    alert(`Imprimiendo boleta para la venta #${saleId}... (Conexión futura a impresora térmica)`);
-  };
+    // 4. Crear el archivo Blob con codificación UTF-8 para Excel (BOM)
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
 
-  if (loading) return <div className="p-8 text-center">Cargando historial...</div>;
+    // 5. Crear un enlace invisible, simular el clic y limpiar
+    const link = document.createElement('a');
+    link.href = url;
+    // Nombre del archivo dinámico con la fecha actual
+    link.setAttribute('download', `historial_ventas_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Historial de Ventas</h1>
+    <div className="space-y-6 h-full">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">Historial de Ventas</h1>
+        <p className="text-gray-500 mt-1">Revisa todas las transacciones realizadas y sus detalles.</p>
+      </div>
 
-      {error && <div className="p-4 mb-6 text-red-700 bg-red-100 rounded">{error}</div>}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-gray-500 uppercase">Desde</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="p-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-pink-500 outline-none bg-gray-50"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-gray-500 uppercase">Hasta</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="p-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-pink-500 outline-none bg-gray-50"
+          />
+        </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="flex gap-2 ml-auto">
+          <button
+            onClick={() => fetchHistory()}
+            className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm"
+          >
+            Buscar
+          </button>
+          {(startDate || endDate) && (
+            <button
+              onClick={handleClearFilters}
+              className="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-4 rounded-lg transition-colors border border-red-100"
+            >
+              Limpiar
+            </button>
+          )}
+
+          {/* NUEVO: Botón de Exportar a CSV */}
+          <button
+            onClick={exportToCSV}
+            disabled={sales.length === 0}
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Exportar datos visibles a Excel"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            CSV
+          </button>
+        </div>
+
+
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left border-collapse">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">N° Venta</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Fecha y Hora</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Cajero</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Método Pago</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-right">Total</th>
+          <table className="w-full text-left border-collapse">
+
+            {/* Cabecera de la tabla */}
+            <thead>
+              <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+                <th className="p-4 font-bold">ID Venta</th>
+                <th className="p-4 font-bold">Fecha y Hora</th>
+                <th className="p-4 font-bold">Cajero</th>
+                <th className="p-4 font-bold">Método de Pago</th>
+                <th className="p-4 font-bold text-center">Artículos</th>
+                <th className="p-4 font-bold text-right">Total</th>
+                <th className="p-4 font-bold text-center">Acción</th>
               </tr>
             </thead>
-            
-            {/* CAMBIO PRINCIPAL AQUÍ */}
+
             {sales.length === 0 ? (
               <tbody>
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No hay ventas registradas.</td>
+                  <td colSpan="7" className="p-8 text-center text-gray-400 font-medium">
+                    No hay ventas registradas aún.
+                  </td>
                 </tr>
               </tbody>
             ) : (
+              // Usamos un tbody para cada venta. Esto evita tener que usar React.Fragment
+              // y mantiene la semántica HTML de la tabla impecable.
               sales.map((sale) => (
-                /* CADA VENTA TIENE SU PROPIO TBODY CON LA KEY */
-                <tbody key={sale.sale_id}>
-                  {/* Fila Principal */}
-                  <tr 
-                    onClick={() => toggleRow(sale.sale_id)}
-                    className={`cursor-pointer transition-colors border-b hover:bg-pink-50 
-                      ${expandedSaleId === sale.sale_id ? 'bg-pink-50' : 'bg-white'}`}
-                  >
-                    <td className="px-6 py-4 font-medium text-gray-900">#{sale.sale_id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sale.sale_date)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <span className="bg-gray-100 px-2 py-1 rounded text-xs">{sale.cashier_name}</span>
+                <tbody key={sale.sale_id} className="border-b border-gray-100 last:border-none transition-colors hover:bg-gray-50/50">
+
+                  {/* Fila Principal de la Venta */}
+                  <tr className={expandedSaleId === sale.sale_id ? 'bg-pink-50/30' : ''}>
+                    <td className="p-4 font-bold text-gray-800">#{sale.sale_id}</td>
+                    <td className="p-4 text-gray-600 text-sm">{formatDate(sale.sale_date)}</td>
+                    <td className="p-4 text-gray-800 font-medium">{sale.cashier_name}</td>
+                    <td className="p-4 text-gray-600 text-sm">
+                      <span className="px-2 py-1 bg-gray-100 rounded-md border border-gray-200 font-medium">
+                        {sale.payment_method_name}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-700">{sale.payment_method_name}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-pink-600 text-right">
-                      {formatCurrency(sale.total)}
+                    <td className="p-4 text-center font-bold text-gray-600">{sale.total_items}</td>
+                    <td className="p-4 text-right font-black text-pink-600">{formatCurrency(sale.total)}</td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => toggleDetails(sale.sale_id)}
+                        className={`p-2 rounded-lg transition-all ${expandedSaleId === sale.sale_id
+                          ? 'bg-pink-100 text-pink-700'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        title="Ver detalles"
+                      >
+                        <svg
+                          className={`w-5 h-5 transform transition-transform ${expandedSaleId === sale.sale_id ? 'rotate-180' : ''}`}
+                          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
                     </td>
                   </tr>
 
-                  {/* Fila Expandible (Detalles) */}
-                  {expandedSaleId === sale.sale_id && (
-                    <tr className="bg-gray-50 border-b">
-                      <td colSpan="5" className="px-6 py-4">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                          
-                          <div className="flex-1 w-full">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Detalle del Pedido ({sale.total_items} ítems)</h4>
-                            <ul className="space-y-1">
-                              {sale.details?.map((item, idx) => (
-                                <li key={idx} className="text-sm text-gray-700 flex justify-between max-w-md">
-                                  <span>{item.quantity}x {item.product_name}</span>
-                                  <span className="font-mono">{formatCurrency(item.subtotal)}</span>
-                                </li>
-                              ))}
-                            </ul>
+                  {/* Fila Desplegable con los Detalles (extraídos de la subconsulta json_agg) */}
+                  {expandedSaleId === sale.sale_id ? (
+                    <tr>
+                      <td colSpan="7" className="p-0 border-t border-dashed border-gray-200 bg-gray-50">
+                        <div className="p-6">
+                          <h4 className="text-sm font-bold text-gray-700 uppercase mb-4 flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                            Detalle del Pedido #{sale.sale_id}
+                          </h4>
+
+                          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                            <table className="w-full text-sm text-left">
+                              <thead className="bg-gray-100 text-gray-600">
+                                <tr>
+                                  <th className="p-3 font-semibold">Producto</th>
+                                  <th className="p-3 font-semibold text-center">Cantidad</th>
+                                  <th className="p-3 font-semibold text-right">Precio Unitario</th>
+                                  <th className="p-3 font-semibold text-right">Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sale.details && sale.details.length > 0 ? (
+                                  sale.details.map((detail, index) => (
+                                    <tr key={index} className="border-t border-gray-100">
+                                      <td className="p-3 font-medium text-gray-800">{detail.product_name}</td>
+                                      <td className="p-3 text-center">{detail.quantity}</td>
+                                      <td className="p-3 text-right text-gray-600">{formatCurrency(detail.unit_price)}</td>
+                                      <td className="p-3 text-right font-bold text-gray-800">{formatCurrency(detail.subtotal)}</td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan="4" className="p-3 text-center text-gray-400">Error: Sin detalles registrados</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
                           </div>
 
-                          <button 
-                            onClick={(e) => handlePrint(e, sale.sale_id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded shadow hover:bg-gray-700 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                            </svg>
-                            Imprimir Boleta
-                          </button>
-                          
                         </div>
                       </td>
                     </tr>
-                  )}
+                  ) : null}
+
                 </tbody>
               ))
             )}
