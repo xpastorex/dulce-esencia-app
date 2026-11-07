@@ -329,7 +329,7 @@ export default function Sales() {
         </div>
 
         {confirmModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
             <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-sm w-full text-center transform transition-all scale-100 opacity-100">
 
               {/* Ícono de Interrogación / Info azul */}
@@ -365,7 +365,7 @@ export default function Sales() {
         )}
 
         {successModal.show && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
             <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-sm w-full text-center transform transition-all scale-100 opacity-100">
 
               {/* Ícono de Check verde */}
